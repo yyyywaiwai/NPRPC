@@ -6,25 +6,7 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-/* End PBXBuildFile section */
-
-/* Begin PBXCopyFilesBuildPhase section */
-		A514BBD32E1ADF9000D1B8E8 /* Embed Foundation Extensions */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 13;
-			files = (
-			);
-			name = "Embed Foundation Extensions";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXCopyFilesBuildPhase section */
-
 /* Begin PBXFileReference section */
-		A514BBC02E1ADF8F00D1B8E8 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
-		A514BBC22E1ADF8F00D1B8E8 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		A56DDD4A2E195E9A00EE952A /* NPRPC.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NPRPC.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -47,20 +29,10 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		A514BBBF2E1ADF8F00D1B8E8 /* Frameworks */ = {
-			isa = PBXGroup;
-			children = (
-				A514BBC02E1ADF8F00D1B8E8 /* WidgetKit.framework */,
-				A514BBC22E1ADF8F00D1B8E8 /* SwiftUI.framework */,
-			);
-			name = Frameworks;
-			sourceTree = "<group>";
-		};
 		A56DDD412E195E9A00EE952A = {
 			isa = PBXGroup;
 			children = (
 				A56DDD4C2E195E9A00EE952A /* NPRPC */,
-				A514BBBF2E1ADF8F00D1B8E8 /* Frameworks */,
 				A56DDD4B2E195E9A00EE952A /* Products */,
 			);
 			sourceTree = "<group>";
@@ -83,7 +55,6 @@
 				A56DDD462E195E9A00EE952A /* Sources */,
 				A56DDD472E195E9A00EE952A /* Frameworks */,
 				A56DDD482E195E9A00EE952A /* Resources */,
-				A514BBD32E1ADF9000D1B8E8 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
