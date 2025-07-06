@@ -10,6 +10,7 @@ import CoreLocation
 
 class BackgroundLocationManager: NSObject, ObservableObject {
     private let locationManager = CLLocationManager()
+    private var updateTimer: Timer?
     
     @Published var isBackgroundModeEnabled = false
     @Published var authorizationStatus: CLAuthorizationStatus = .notDetermined
@@ -21,8 +22,8 @@ class BackgroundLocationManager: NSObject, ObservableObject {
     
     private func setupLocationManager() {
         locationManager.delegate = self
-        locationManager.desiredAccuracy = kCLLocationAccuracyThreeKilometers
-        locationManager.distanceFilter = 1000 // 1km以上移動したら更新
+        locationManager.desiredAccuracy = kCLLocationAccuracyBest
+        locationManager.distanceFilter = kCLDistanceFilterNone // 距離フィルターなし
         authorizationStatus = locationManager.authorizationStatus
     }
     
@@ -38,14 +39,22 @@ class BackgroundLocationManager: NSObject, ObservableObject {
             return
         }
         
-        print("🟢 Starting background location updates")
+        print("🟢 Starting background location updates (5-second intervals)")
         locationManager.startUpdatingLocation()
+        
+        // 5秒ごとに位置情報更新を強制的にリクエスト
+        updateTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { _ in
+            self.locationManager.requestLocation()
+        }
+        
         isBackgroundModeEnabled = true
     }
     
     func stopBackgroundMode() {
         print("🔴 Stopping background location updates")
         locationManager.stopUpdatingLocation()
+        updateTimer?.invalidate()
+        updateTimer = nil
         isBackgroundModeEnabled = false
     }
 }
@@ -54,7 +63,8 @@ extension BackgroundLocationManager: CLLocationManagerDelegate {
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         // 位置情報の更新を受信（実際には位置情報は使用しない）
         // バックグラウンドでの実行継続のためのトリガーとしてのみ使用
-        print("📍 Location updated (background mode active)")
+        let timestamp = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .medium)
+        print("📍 Location updated at \(timestamp) (5-second interval background mode)")
     }
     
     func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {

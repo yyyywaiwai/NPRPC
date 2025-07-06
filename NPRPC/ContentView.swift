@@ -6,54 +6,53 @@
 //
 
 import SwiftUI
+import CoreLocation
 
 struct ContentView: View {
     @StateObject private var musicManager = MusicManager()
     @StateObject private var rpcClient = RPCClient()
     @StateObject private var serverDiscovery = ServerDiscovery()
     @StateObject private var backgroundLocationManager = BackgroundLocationManager()
-    @State private var isAutoSync = false
+    @State private var isAutoSync = true
     @State private var isBackgroundModeEnabled = false
     @State private var showServerPicker = false
     
     var body: some View {
         NavigationView {
             VStack(spacing: 20) {
-                // 接続状態表示
-                ConnectionStatusView(isConnected: rpcClient.isConnected)
+                // 現在の楽曲情報表示 - メイン表示
+                CurrentTrackView(track: musicManager.currentTrack)
                 
-                // バックグラウンドモード状態表示
-                if isBackgroundModeEnabled {
-                    BackgroundModeStatusView(
+                // コントロールエリア
+                VStack(spacing: 16) {
+                    // サーバー設定とステータス
+                    ServerConfigurationView(
+                        serverURL: $rpcClient.serverURL,
+                        isConnected: rpcClient.isConnected,
+                        onDiscoverServers: {
+                            showServerPicker = true
+                        }
+                    )
+                    
+                    // 同期コントロール
+                    SyncControlView(
+                        musicManager: musicManager,
+                        rpcClient: rpcClient,
+                        isAutoSync: $isAutoSync
+                    )
+                    
+                    // バックグラウンドモード設定
+                    BackgroundModeToggleView(
+                        isEnabled: $isBackgroundModeEnabled,
                         isActive: backgroundLocationManager.isBackgroundModeEnabled,
                         authStatus: backgroundLocationManager.authorizationStatus
                     )
                 }
                 
-                // 現在の楽曲情報表示
-                CurrentTrackView(track: musicManager.currentTrack)
-                
-                // 設定セクション
-                SettingsView(
-                    serverURL: $rpcClient.serverURL,
-                    isAutoSync: $isAutoSync,
-                    isBackgroundModeEnabled: $isBackgroundModeEnabled,
-                    onDiscoverServers: {
-                        showServerPicker = true
-                    }
-                )
-                
-                // 手動制御ボタン
-                ControlButtonsView(
-                    musicManager: musicManager,
-                    rpcClient: rpcClient,
-                    isAutoSync: $isAutoSync
-                )
-                
                 Spacer()
             }
             .padding()
-            .navigationTitle("Music Discord RPC")
+            .navigationBarHidden(true)
             .onAppear {
                 AudioSessionManager.shared.setupBackgroundAudio()
             }
@@ -126,7 +125,7 @@ struct CurrentTrackView: View {
     let track: MusicTrack?
     
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 16) {
             HStack {
                 Image(systemName: "music.note")
                     .foregroundColor(.blue)
@@ -136,163 +135,167 @@ struct CurrentTrackView: View {
             }
             
             if let track = track {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(track.title)
-                                .font(.title2)
-                                .fontWeight(.semibold)
-                            Text(track.artist)
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                            Text(track.album)
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        Spacer()
-                        
+                HStack(alignment: .top, spacing: 16) {
+                    // アートワーク（左側）
+                    if let artworkBase64 = track.artworkBase64,
+                       let imageData = Data(base64Encoded: artworkBase64),
+                       let uiImage = UIImage(data: imageData) {
+                        Image(uiImage: uiImage)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: 80, height: 80)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 1)
+                    } else {
                         VStack {
-                            // Display actual artwork if available
-                            if let artworkBase64 = track.artworkBase64,
-                               let imageData = Data(base64Encoded: artworkBase64),
-                               let uiImage = UIImage(data: imageData) {
-                                Image(uiImage: uiImage)
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fit)
-                                    .frame(width: 60, height: 60)
-                                    .cornerRadius(8)
-                            } else {
-                                Image(systemName: "music.note")
-                                    .font(.title)
-                                    .foregroundColor(.gray)
-                                    .frame(width: 60, height: 60)
-                            }
-                            
-                            Image(systemName: track.isPlaying ? "play.circle.fill" : "pause.circle.fill")
-                                .font(.title2)
-                                .foregroundColor(track.isPlaying ? .green : .orange)
+                            Image(systemName: "photo")
+                                .font(.system(size: 24))
+                                .foregroundColor(.gray)
+                            Text("JPEG")
+                                .font(.caption2)
+                                .fontWeight(.medium)
+                                .foregroundColor(.gray)
                         }
+                        .frame(width: 80, height: 80)
+                        .background(Color(.tertiarySystemBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
+                    
+                    // 楽曲情報（右側）
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(track.title)
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.leading)
+                        Text(track.artist)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                        Text(track.album)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             } else {
-                Text("No music playing")
-                    .foregroundColor(.secondary)
-                    .italic()
+                HStack(alignment: .top, spacing: 16) {
+                    // アートワーク（左側）
+                    VStack {
+                        Image(systemName: "photo")
+                            .font(.system(size: 24))
+                            .foregroundColor(.gray)
+                        Text("JPEG")
+                            .font(.caption2)
+                            .fontWeight(.medium)
+                            .foregroundColor(.gray)
+                    }
+                    .frame(width: 80, height: 80)
+                    .background(Color(.tertiarySystemBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    
+                    // 楽曲情報（右側）
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("No music playing")
+                            .font(.headline)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
         }
         .padding()
         .background(Color(.secondarySystemBackground))
-        .cornerRadius(10)
+        .cornerRadius(16)
     }
 }
 
-struct SettingsView: View {
+struct ServerConfigurationView: View {
     @Binding var serverURL: String
-    @Binding var isAutoSync: Bool
-    @Binding var isBackgroundModeEnabled: Bool
+    let isConnected: Bool
     let onDiscoverServers: () -> Void
     
     var body: some View {
         VStack(spacing: 12) {
             HStack {
-                Image(systemName: "gear")
+                Image(systemName: "server.rack")
                     .foregroundColor(.blue)
-                Text("Settings")
+                Text("Server")
                     .font(.headline)
                 Spacer()
+                Circle()
+                    .fill(isConnected ? .green : .red)
+                    .frame(width: 12, height: 12)
+                Text(isConnected ? "Connected" : "Disconnected")
+                    .font(.caption)
+                    .foregroundColor(isConnected ? .green : .red)
             }
             
             VStack(spacing: 8) {
                 HStack {
-                    Text("Server URL:")
-                        .font(.subheadline)
-                    Spacer()
-                }
-                
-                HStack {
-                    TextField("http://192.168.1.100:8080", text: $serverURL)
+                    TextField("Enter your server URL", text: $serverURL)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                         .autocapitalization(.none)
                         .disableAutocorrection(true)
                     
-                    Button("🔍") {
-                        onDiscoverServers()
+                    Button(action: onDiscoverServers) {
+                        Image(systemName: "magnifyingglass.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(.blue)
                     }
-                    .font(.title2)
                 }
-                
-                Toggle("Auto Sync", isOn: $isAutoSync)
-                
-                Toggle("Background Mode (位置情報)", isOn: $isBackgroundModeEnabled)
             }
         }
         .padding()
         .background(Color(.secondarySystemBackground))
-        .cornerRadius(10)
+        .cornerRadius(12)
     }
 }
 
-struct ControlButtonsView: View {
+struct SyncControlView: View {
     let musicManager: MusicManager
     let rpcClient: RPCClient
     @Binding var isAutoSync: Bool
     
     var body: some View {
         VStack(spacing: 12) {
-            Button(action: {
-                Task {
-                    await rpcClient.checkStatus()
+            HStack(spacing: 12) {
+                if let track = musicManager.currentTrack {
+                    Button(action: {
+                        Task {
+                            await rpcClient.updatePresence(track: track)
+                        }
+                    }) {
+                        Label("Sync", systemImage: "arrow.up.circle")
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .background(Color.green)
+                            .foregroundColor(.white)
+                            .cornerRadius(8)
+                    }
                 }
-            }) {
-                HStack {
-                    Image(systemName: "network")
-                    Text("Check Connection")
-                }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color.blue)
-                .foregroundColor(.white)
-                .cornerRadius(10)
-            }
-            
-            if let track = musicManager.currentTrack {
+                
                 Button(action: {
                     Task {
-                        await rpcClient.updatePresence(track: track)
+                        await rpcClient.clearPresence()
                     }
                 }) {
-                    HStack {
-                        Image(systemName: "arrow.up.circle")
-                        Text("Update Now")
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.green)
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
+                    Label("Clear", systemImage: "xmark.circle")
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .background(Color.red)
+                        .foregroundColor(.white)
+                        .cornerRadius(8)
                 }
             }
-            
-            Button(action: {
-                Task {
-                    await rpcClient.clearPresence()
-                }
-            }) {
-                HStack {
-                    Image(systemName: "clear")
-                    Text("Clear Presence")
-                }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color.red)
-                .foregroundColor(.white)
-                .cornerRadius(10)
-            }
-            
         }
+        .padding()
+        .background(Color(.secondarySystemBackground))
+        .cornerRadius(12)
     }
 }
+
 
 struct ServerPickerView: View {
     @ObservedObject var serverDiscovery: ServerDiscovery
@@ -358,6 +361,36 @@ struct ServerPickerView: View {
                 }
             }
         }
+    }
+}
+
+struct BackgroundModeToggleView: View {
+    @Binding var isEnabled: Bool
+    let isActive: Bool
+    let authStatus: CLAuthorizationStatus
+    
+    private var locationIconColor: Color {
+        if !isEnabled {
+            return .red
+        } else if authStatus == .authorizedWhenInUse || authStatus == .authorizedAlways {
+            return isActive ? .green : .orange
+        } else {
+            return .orange
+        }
+    }
+    
+    var body: some View {
+        HStack {
+            Image(systemName: "location.fill")
+                .foregroundColor(locationIconColor)
+                .font(.title2)
+            
+            Toggle("Background Mode", isOn: $isEnabled)
+                .font(.headline)
+            
+            Spacer()
+        }
+        .padding(.horizontal)
     }
 }
 

@@ -106,8 +106,8 @@ class MusicManager: ObservableObject {
         var artworkBase64: String?
         if let artwork = nowPlayingItem.artwork {
             let artworkImage = artwork.image(at: CGSize(width: 300, height: 300))
-            if let imageData = artworkImage?.jpegData(compressionQuality: 0.8) {
-                artworkBase64 = imageData.base64EncodedString()
+            if let compressedImageData = compressImageToJPEG(artworkImage) {
+                artworkBase64 = compressedImageData.base64EncodedString()
             }
         }
         
@@ -124,6 +124,28 @@ class MusicManager: ObservableObject {
         
         // 常に最新の情報に更新（アートワークの変更も含む）
         currentTrack = newTrack
+    }
+    
+    private func compressImageToJPEG(_ image: UIImage?, quality: CGFloat = 0.7) -> Data? {
+        guard let image = image else { return nil }
+        
+        // 最適なサイズにリサイズ
+        let targetSize = CGSize(width: 512, height: 512)
+        let resizedImage = resizeImage(image, to: targetSize)
+        
+        // JPEG圧縮
+        return resizedImage.jpegData(compressionQuality: quality)
+    }
+    
+    private func resizeImage(_ image: UIImage, to targetSize: CGSize) -> UIImage {
+        let rect = CGRect(origin: .zero, size: targetSize)
+        
+        UIGraphicsBeginImageContextWithOptions(targetSize, false, 1.0)
+        image.draw(in: rect)
+        let resizedImage = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        
+        return resizedImage ?? image
     }
 }
 
