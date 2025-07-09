@@ -5,7 +5,6 @@ iPhoneで現在再生中の音楽情報をDiscordのRich Presenceに表示する
 ## 機能
 
 - 📱 iPhone音楽情報の取得（MPMusicPlayerController）
-- 🖼️ アルバムアートワークの表示
 - 🎮 Discord Rich Presence連携
 - 🔄 リアルタイム自動同期
 - 📍 位置情報を利用したバックグラウンド実行
