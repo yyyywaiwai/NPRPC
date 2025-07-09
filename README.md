@@ -4,21 +4,19 @@ iPhoneで現在再生中の音楽情報をDiscordのRich Presenceに表示する
 
 ## 機能
 
-- 📱 iPhone音楽情報の取得（MPNowPlayingInfoCenter）
-- 🖼️ アルバムアートワークの表示（Base64変換・Discord Webhook連携）
+- 📱 iPhone音楽情報の取得（MPMusicPlayerController）
+- 🖼️ アルバムアートワークの表示
 - 🎮 Discord Rich Presence連携
 - 🔄 リアルタイム自動同期
-- 📱 Live Activity対応（iOS 16.1+）
-- 🎵 Background Audio Mode対応
+- 📍 位置情報を利用したバックグラウンド実行
+- 🔍 自動サーバー検索機能
 
 ## アーキテクチャ
 
 ```
-iPhone App (Swift/SwiftUI)
-    ↓ JSON-RPC over HTTP
-PC Server (Python/Flask)
-    ↓ Discord IPC + Webhook
-Discord Rich Presence + CDN
+MusicManager → ContentView → RPCClient → Python Server → Discord RPC
+     ↓              ↓             ↓
+音楽情報取得    UI状態管理    JSON-RPC通信
 ```
 
 ## セットアップ
@@ -29,17 +27,7 @@ Discord Rich Presence + CDN
 2. 新しいアプリケーションを作成
 3. Client IDをコピー
 
-### 2. Discord Webhook設定
-
-1. **Discord サーバーでWebhook作成**
-   - 任意のチャンネルで設定 → 統合 → ウェブフック
-   - 新しいウェブフック作成
-   - アートワーク専用チャンネル推奨（例: `#music-artwork-storage`）
-
-2. **Webhook URLをコピー**
-   - 形式: `https://discord.com/api/webhooks/{id}/{token}`
-
-### 3. Python サーバーセットアップ
+### 2. Python サーバーセットアップ
 
 ```bash
 cd server
@@ -53,23 +41,23 @@ cp .env.example .env
 `.env`ファイル例：
 ```
 DISCORD_CLIENT_ID=your_discord_client_id_here
-DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/your_webhook_id/your_webhook_token
 SERVER_HOST=0.0.0.0
 SERVER_PORT=8080
 ```
 
-### 4. サーバー起動
+### 3. サーバー起動
 
 ```bash
 python rpc_server.py
 ```
 
-### 5. iOSアプリ設定
+### 4. iOSアプリ設定
 
 1. Xcodeでプロジェクトを開く
 2. アプリを実行
-3. Settings画面でサーバーURLを設定
-4. Auto Syncを有効化
+3. Apple Music権限を許可
+4. 位置情報権限を許可（バックグラウンド実行用）
+5. アプリが自動的にサーバーを検索
 
 ## 使用方法
 
@@ -82,7 +70,7 @@ python rpc_server.py
 
 ### 手動操作
 
-- **Check Connection**: サーバー接続確認
+- **Scan for Servers**: サーバーを手動検索
 - **Update Now**: 手動でRich Presence更新
 - **Clear Presence**: Discord表示をクリア
 
@@ -101,8 +89,7 @@ python rpc_server.py
   "params": {
     "title": "曲名",
     "artist": "アーティスト名",
-    "album": "アルバム名",
-    "artwork": "base64_encoded_image_data"
+    "album": "アルバム名"
   },
   "id": 1
 }
@@ -134,51 +121,30 @@ python rpc_server.py
 
 ### iOS要件
 
-- iOS 15.0以上
-- Swift 5.5以上
+- iOS 17.0以上
+- Swift 5.9以上
 - SwiftUI
 - MediaPlayer framework
-- ActivityKit（Live Activity用）
+- CoreLocation framework
 
 ### 使用フレームワーク
 
 #### iOS
-- **MediaPlayer**: 音楽情報取得
-- **AVFoundation**: Background Audio Mode
-- **ActivityKit**: Live Activity
-- **URLSession**: HTTP通信
+- **MediaPlayer**: 音楽情報取得（MPMusicPlayerController）
+- **CoreLocation**: バックグラウンド実行維持
+- **Foundation**: JSON-RPC通信
+- **SwiftUI**: UI構築
 
 #### Python
 - **pypresence**: Discord Rich Presence
 - **Flask**: HTTPサーバー
-- **Pillow**: 画像処理
-- **requests**: Discord Webhook通信
-
-## Discord Webhook利用の利点
-
-### Imgur APIと比較した利点
-
-- **外部API不要**: Discord Webhookのみで完結
-- **永続性**: Discord CDNに永続保存される
-- **高速配信**: Discord CDNの高速配信ネットワーク
-- **無料**: 追加コストなし
-- **簡単設定**: Webhook URL 1つで設定完了
-- **高品質**: 8MBまでの高品質画像対応
-
-### 画像アップロードフロー
-
-1. iPhoneアプリがアルバムアートワークを取得
-2. Base64エンコードしてPCサーバーに送信
-3. PCサーバーがDiscord Webhookに画像アップロード
-4. Discord CDN URLを取得
-5. Rich PresenceのLarge Imageに設定
 
 ## 制約事項
 
 ### iOS制限
 - Apple Music ストリーミング楽曲（未ダウンロード）はアートワーク取得不可
-- iOS 18ではLive Activity更新頻度が5-15秒に制限
-- Live Activityは最大8時間で自動終了
+- 位置情報を利用したバックグラウンド実行のため、バッテリー消費が増加する可能性
+- 無料開発者アカウントでは署名が7日間で期限切れ
 
 ### ネットワーク
 - iPhoneとPCが同一ネットワーク内にある必要がある
@@ -188,18 +154,22 @@ python rpc_server.py
 
 ### 音楽情報が取得できない
 - Apple Musicのメディアライブラリアクセス許可を確認
-- Background Audio Modeが有効か確認
+- 音楽アプリで楽曲が再生中か確認
 
 ### サーバー接続エラー
 - PC側のPythonサーバーが起動しているか確認
 - ネットワーク接続とIPアドレスを確認
 - ファイアウォール設定を確認
+- 「Scan for Servers」ボタンで手動検索を実行
 
 ### Discord表示されない
 - Discord Client IDが正しく設定されているか確認
-- Discord Webhook URLが正しく設定されているか確認
 - Discordの「現在のゲームを表示」設定が有効か確認
-- Webhookチャンネルへのアクセス権限を確認
+
+### バックグラウンド実行が停止する
+- 位置情報権限が「アプリ使用中」に設定されているか確認
+- iOSの省電力モードが無効か確認
+- アプリがバックグラウンドで実行されているか確認
 
 ## ライセンス
 
